@@ -275,7 +275,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
     <pre id="shareText" hidden></pre>
     <div class="win-actions">
       <button class="btn" id="copyResBtn">Copy result</button>
-      <button class="btn toggle" id="surroundBtn" aria-pressed="false">Show surrounds</button>
+      <button class="btn toggle" id="surroundBtn" aria-pressed="false">Show background colors</button>
       <button class="btn primary" id="nextBtn">Next level</button>
     </div>
   </div>
@@ -335,7 +335,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   </fieldset>
 
   <fieldset>
-    <legend>Surrounds</legend>
+    <legend>Background colors</legend>
     <div class="swatches" id="surSw"><span></span><span></span><span></span><i>light-warm · mid · dark-cool</i></div>
     <div class="row"><label for="surL">Lightness, middle surround <output id="surLv"></output></label><input type="range" id="surL" min="0.3" max="0.8" step="0.005"></div>
     <div class="row"><label for="surDL">Lightness spread <output id="surDLv"></output></label><input type="range" id="surDL" min="0" max="0.35" step="0.005"></div>
@@ -363,7 +363,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   <fieldset>
     <legend>Playtest</legend>
     <div class="actions">
-      <button class="btn toggle" id="surroundBtn2" aria-pressed="true">Surrounds on</button>
+      <button class="btn toggle" id="surroundBtn2" aria-pressed="true">Background colors on</button>
       <button class="btn" id="shuffleBtn">Reshuffle level</button>
       <button class="btn" id="clearBtn">Clear progress</button>
       <button class="btn" id="grantBtn">Grant a Peek</button>
@@ -742,9 +742,9 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   function syncToggles(){
     const on=!S.revealed;
     $('surroundBtn').setAttribute('aria-pressed',String(on));
-    $('surroundBtn').textContent=on?'Hide surrounds':'Show surrounds';
+    $('surroundBtn').textContent=on?'Hide background colors':'Show background colors';
     $('surroundBtn2').setAttribute('aria-pressed',String(on));
-    $('surroundBtn2').textContent=on?'Surrounds on':'Surrounds off';
+    $('surroundBtn2').textContent=on?'Background colors on':'Background colors off';
   }
 
   cells.forEach(t=>{
