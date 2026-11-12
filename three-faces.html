@@ -368,7 +368,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
       <button class="btn" id="clearBtn">Clear progress</button>
       <button class="btn" id="grantBtn">Grant a Peek</button>
     </div>
-    <p class="note">Tuning and progress are saved in this browser only. Each level has its own palette (1 Stone, 2 Clay, 3 Sage), shared by all difficulties; sliders edit the palette of the level you are on. Aim for: light chip on the light surround, mid chip on mid, dark chip on dark all reading as the same color.</p>
+    <p class="note">Color tuning is saved in this browser. Progress and best results reset every time the page is opened. Each level has its own palette (1 Stone, 2 Clay, 3 Sage), shared by all difficulties; sliders edit the palette of the level you are on. Aim for: light chip on the light surround, mid chip on mid, dark chip on dark all reading as the same color.</p>
   </fieldset>
 </aside>
 
@@ -428,8 +428,10 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   try{const o=JSON.parse(localStorage.getItem(STORE)||'null');if(o&&o.pal&&o.pat)overrides=o;}catch(e){}
   function saveOverrides(){try{localStorage.setItem(STORE,JSON.stringify(overrides));}catch(e){}}
   let progress=[[false,false,false],[false,false,false],[false,false,false]];
-  try{const p=JSON.parse(localStorage.getItem(PROG)||'null');if(Array.isArray(p)&&p.length===3)progress=p.map(r=>[!!r[0],!!r[1],!!r[2]]);}catch(e){}
-  function saveProgress(){try{localStorage.setItem(PROG,JSON.stringify(progress));}catch(e){}}
+  /* progress, bests and daily results live in memory only: every page load starts fresh.
+     Old saved copies from earlier versions are removed. Color tuning is still saved. */
+  try{['threeFaces.progress.v1','threeFaces.best.v1','threeFaces.daily.v1'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+  function saveProgress(){}
 
   function params(d,l){
     const p=Object.assign({},PALETTES[l],overrides.pal[l]||{});
@@ -491,11 +493,9 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
     let rest=0;for(let f=0;f<3;f++)for(let g=0;g<3;g++)rest+=m[f][g];
     return swaps+Math.round(rest/3)*2;
   }
-  const BEST='threeFaces.best.v1', DAILY='threeFaces.daily.v1';
+
   let bests={},daily={};
-  try{bests=JSON.parse(localStorage.getItem(BEST)||'{}')||{};}catch(e){bests={};}
-  try{daily=JSON.parse(localStorage.getItem(DAILY)||'{}')||{};}catch(e){daily={};}
-  function saveRecords(){try{localStorage.setItem(BEST,JSON.stringify(bests));localStorage.setItem(DAILY,JSON.stringify(daily));}catch(e){}}
+  function saveRecords(){}
   const fmtTime=ms=>{const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 
   /* ---------- state ---------- */
