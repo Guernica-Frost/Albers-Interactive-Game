@@ -326,8 +326,10 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   <fieldset>
     <legend>Chips (true colors)</legend>
     <div class="swatches" id="tileSw"><span></span><span></span><span></span><i>light · mid · dark</i></div>
+    <div class="row"><label for="baseH">Shared chip hue <output id="baseHv"></output></label><input type="range" id="baseH" min="0" max="359" step="1"></div>
+    <div class="row"><label for="baseC">Shared chip chroma (0 = grey) <output id="baseCv"></output></label><input type="range" id="baseC" min="0" max="0.12" step="0.001"></div>
     <div class="row"><label for="tileL">Lightness, middle chip <output id="tileLv"></output></label><input type="range" id="tileL" min="0.45" max="0.8" step="0.005"></div>
-    <div class="row"><label for="tileDL">Lightness step between chips, level 1 <output id="tileDLv"></output></label><input type="range" id="tileDL" min="0" max="0.08" step="0.001"></div>
+    <div class="row"><label for="tileDL">Lightness step between chips <output id="tileDLv"></output></label><input type="range" id="tileDL" min="0" max="0.08" step="0.001"></div>
     <div class="row"><label for="tileC">Tint toward home surround <output id="tileCv"></output></label><input type="range" id="tileC" min="0" max="0.06" step="0.001"></div>
     <div class="row"><label for="tf">Chip size in its cell <output id="tfv"></output></label><input type="range" id="tf" min="20" max="85" step="1"></div>
   </fieldset>
@@ -354,7 +356,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
     <pre class="readout" id="readout"></pre>
     <div class="actions">
       <button class="btn" id="copyBtn">Copy values</button>
-      <button class="btn" id="resetBtn">Reset this difficulty</button>
+      <button class="btn" id="resetBtn">Reset this palette</button>
     </div>
   </fieldset>
 
@@ -366,7 +368,7 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
       <button class="btn" id="clearBtn">Clear progress</button>
       <button class="btn" id="grantBtn">Grant a Peek</button>
     </div>
-    <p class="note">Tuning and progress are saved in this browser only. Levels 2 and 3 use 90% and 80% of the lightness step. Aim for: light chip on the light surround, mid chip on mid, dark chip on dark all reading as the same neutral grey.</p>
+    <p class="note">Tuning and progress are saved in this browser only. Each level has its own palette (1 Stone, 2 Clay, 3 Sage), shared by all difficulties; sliders edit the palette of the level you are on. Aim for: light chip on the light surround, mid chip on mid, dark chip on dark all reading as the same color.</p>
   </fieldset>
 </aside>
 
@@ -412,22 +414,28 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
     {name:'Hard',pattern:'three',blurb:'All three backgrounds on each face.',
      intro:'Every face now mixes all three backgrounds. Same goal: <b>match every chip on a face to its fixed center</b>.'}
   ];
-  const LEVELS=[{scramble:6,step:1},{scramble:12,step:.9},{scramble:'full',step:.8}];
-  const DEFAULTS={tileL:.62,tileDL:.035,tileC:.02,surL:.60,surDL:.24,surC:.10,hue0:70,tf:40};
-  const STORE='threeFaces.tuning.v3', PROG='threeFaces.progress.v1';
-  let overrides={};
-  try{overrides=JSON.parse(localStorage.getItem(STORE)||'{}')||{};}catch(e){overrides={};}
+  const LEVELS=[{scramble:6},{scramble:12},{scramble:'full'}];
+  /* one palette per level, shared by every difficulty. Chips = a shared base color (baseC, baseH),
+     nudged toward their home surround by tileC and spread in lightness by tileDL.
+     Surrounds = light / mid / dark at hue0, hue0+120, hue0+240. */
+  const PALETTES=[
+    {name:'Stone',tileL:.62,tileDL:.035,tileC:.02,baseC:0,   baseH:0,  surL:.60,surDL:.24,surC:.10,hue0:70, tf:40},
+    {name:'Clay', tileL:.64,tileDL:.024,tileC:.014,baseC:.070,baseH:40, surL:.60,surDL:.24,surC:.11,hue0:100,tf:40},
+    {name:'Sage', tileL:.62,tileDL:.020,tileC:.012,baseC:.050,baseH:165,surL:.60,surDL:.24,surC:.11,hue0:25, tf:40}
+  ];
+  const STORE='threeFaces.tuning.v4', PROG='threeFaces.progress.v1';
+  let overrides={pal:{},pat:{}};
+  try{const o=JSON.parse(localStorage.getItem(STORE)||'null');if(o&&o.pal&&o.pat)overrides=o;}catch(e){}
   function saveOverrides(){try{localStorage.setItem(STORE,JSON.stringify(overrides));}catch(e){}}
   let progress=[[false,false,false],[false,false,false],[false,false,false]];
   try{const p=JSON.parse(localStorage.getItem(PROG)||'null');if(Array.isArray(p)&&p.length===3)progress=p.map(r=>[!!r[0],!!r[1],!!r[2]]);}catch(e){}
   function saveProgress(){try{localStorage.setItem(PROG,JSON.stringify(progress));}catch(e){}}
 
   function params(d,l){
-    const o=overrides[d]||{};
-    const p=Object.assign({},DEFAULTS,o);
-    p.pattern=o.pattern||DIFF[d].pattern;
+    const p=Object.assign({},PALETTES[l],overrides.pal[l]||{});
+    p.pattern=overrides.pat[d]||DIFF[d].pattern;
     p.scramble=LEVELS[l].scramble;
-    p.step=p.tileDL*LEVELS[l].step;
+    p.step=p.tileDL;
     return p;
   }
   /* which surround (0 light, 1 mid, 2 dark) a cell carries */
@@ -440,9 +448,15 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   const clampL=v=>Math.min(.98,Math.max(.05,v));
   function computeColors(p){
     const hues=[0,1,2].map(k=>p.hue0+120*k);
+    const rad=Math.PI/180;
+    const chip=(L,k)=>{
+      const a=p.baseC*Math.cos(p.baseH*rad)+p.tileC*Math.cos(hues[k]*rad);
+      const b=p.baseC*Math.sin(p.baseH*rad)+p.tileC*Math.sin(hues[k]*rad);
+      return oklch(clampL(L),Math.hypot(a,b),Math.atan2(b,a)/rad);
+    };
     return {
       s:[p.surL+p.surDL,p.surL,p.surL-p.surDL].map((L,k)=>oklch(clampL(L),p.surC,hues[k])),
-      t:[p.tileL+p.step,p.tileL,p.tileL-p.step].map((L,k)=>oklch(clampL(L),p.tileC,hues[k]))
+      t:[p.tileL+p.step,p.tileL,p.tileL-p.step].map((L,k)=>chip(L,k))
     };
   }
   const NEUTRAL=oklch(.45,0,0).css;
@@ -817,19 +831,18 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   }
 
   /* ---------- tuning panel ---------- */
-  const keys=['tileL','tileDL','tileC','tf','surL','surDL','surC','hue0'];
-  const fmt={tileL:v=>v.toFixed(3),tileDL:v=>v.toFixed(3),tileC:v=>v.toFixed(3),tf:v=>v+'%',surL:v=>v.toFixed(3),surDL:v=>v.toFixed(3),surC:v=>v.toFixed(3),hue0:v=>v+'°'};
+  const keys=['baseH','baseC','tileL','tileDL','tileC','tf','surL','surDL','surC','hue0'];
+  const fmt={baseH:v=>Math.round(v)+'°',baseC:v=>v.toFixed(3),tileL:v=>v.toFixed(3),tileDL:v=>v.toFixed(3),tileC:v=>v.toFixed(3),tf:v=>v+'%',surL:v=>v.toFixed(3),surDL:v=>v.toFixed(3),surC:v=>v.toFixed(3),hue0:v=>v+'°'};
   keys.forEach(k=>$(k).addEventListener('input',()=>{
-    overrides[S.diff]=Object.assign({},overrides[S.diff]||{},{[k]:+$(k).value});
+    overrides.pal[S.level]=Object.assign({},overrides.pal[S.level]||{},{[k]:+$(k).value});
     saveOverrides();applyColors();
   }));
   $('pattern').addEventListener('change',()=>{
     const v=$('pattern').value;
-    overrides[S.diff]=Object.assign({},overrides[S.diff]||{});
-    if(v==='default')delete overrides[S.diff].pattern;else overrides[S.diff].pattern=v;
+    if(v==='default')delete overrides.pat[S.diff];else overrides.pat[S.diff]=v;
     saveOverrides();applyColors();
   });
-  $('resetBtn').addEventListener('click',()=>{delete overrides[S.diff];saveOverrides();applyColors();});
+  $('resetBtn').addEventListener('click',()=>{delete overrides.pal[S.level];delete overrides.pat[S.diff];saveOverrides();applyColors();});
   $('copyBtn').addEventListener('click',()=>{
     const txt=$('readout').textContent;
     const done=()=>{$('copyBtn').textContent='Copied';setTimeout(()=>$('copyBtn').textContent='Copy values',1200);};
@@ -838,15 +851,14 @@ legend{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m
   });
   function selectReadout(){const r=document.createRange();r.selectNodeContents($('readout'));const s=getSelection();s.removeAllRanges();s.addRange(r);}
   function renderPanel(p){
-    $('pWhere').textContent=DIFF[S.diff].name+' · level '+(S.level+1);
+    $('pWhere').textContent=DIFF[S.diff].name+' · level '+(S.level+1)+' · '+p.name+' palette';
     keys.forEach(k=>{if(document.activeElement!==$(k))$(k).value=p[k];$(k+'v').textContent=fmt[k](p[k]);});
-    const o=overrides[S.diff]||{};
-    if(document.activeElement!==$('pattern'))$('pattern').value=o.pattern||'default';
+    if(document.activeElement!==$('pattern'))$('pattern').value=overrides.pat[S.diff]||'default';
     [...$('tileSw').querySelectorAll('span')].forEach((s,i)=>s.style.background=current.t[i].css);
     [...$('surSw').querySelectorAll('span')].forEach((s,i)=>s.style.background=current.s[i].css);
     const names=['light','mid  ','dark '];
     const line=arr=>arr.map((c,i)=>'  '+names[i]+'  L '+c.L.toFixed(3)+'  C '+c.C.toFixed(3)+'  H '+Math.round(c.H)+'°  '+c.css).join('\n');
-    $('readout').textContent=DIFF[S.diff].name+' · level '+(S.level+1)+' · pattern: '+p.pattern+'\nchips (tint '+p.tileC.toFixed(3)+', step '+p.step.toFixed(3)+', size '+p.tf+'%)\n'+line(current.t)+'\nsurrounds (spread '+p.surDL.toFixed(3)+')\n'+line(current.s);
+    $('readout').textContent=DIFF[S.diff].name+' · level '+(S.level+1)+' · '+p.name+' palette · pattern: '+p.pattern+'\nchips (base C '+p.baseC.toFixed(3)+' H '+Math.round(p.baseH)+'°, tint '+p.tileC.toFixed(3)+', step '+p.step.toFixed(3)+', size '+p.tf+'%)\n'+line(current.t)+'\nsurrounds (spread '+p.surDL.toFixed(3)+')\n'+line(current.s);
   }
 
   /* ---------- boot (keeps a game in progress across republishes) ---------- */
